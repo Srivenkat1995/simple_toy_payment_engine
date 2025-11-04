@@ -42,7 +42,7 @@ cargo run -- transactions.csv > accounts.csv
 - Orchestrator – Reads CSV input, sends transactions to the engine, writes CSV output.
 
 
-### UML Class Diagram (Mermaid)
+### Initial Project Low-Level Design (Mermaid)
 
 ```mermaid
 classDiagram
