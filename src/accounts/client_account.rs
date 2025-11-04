@@ -29,12 +29,13 @@ impl ClientAccount {
         self.total += amount;
     }
 
-    pub fn withdraw(&mut self, amount: Decimal) {
+    pub fn withdraw(&mut self, amount: Decimal) -> bool {
         if self.locked || self.available < amount {
-            return;
+            return false;
         }
         self.available -= amount;
         self.total -= amount;
+        true
     }
 
     pub fn hold(&mut self, amount: Decimal) {

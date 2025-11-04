@@ -10,3 +10,5 @@ description = "A simple Rust-based payments engine that processes transactions a
 serde = {version = "*", features = ["derive"]}
 csv = "*"
 rust_decimal = { version = "1.30", features = ["serde"] }
+log = "0.4"
+env_logger = "0.11.8"

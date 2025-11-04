@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use csv::Writer;
-use rust_decimal::prelude::FromPrimitive;
+use log::{debug, warn, info};
 
 use crate::accounts::client_account::ClientAccount;
 use crate::transactions::{TransactionRecord, Transaction, TransactionType};
@@ -33,6 +33,13 @@ impl PaymentEngine {
                     let account = self.get_account(record.client);
                     account.deposit(amount);
 
+                    if self.transactions.contains_key(&record.tx) {
+                        // Duplicate tx id: we've chosen to apply the new operation but log the overwrite
+                        warn!("duplicate tx id {} for client {}: overwriting existing transaction", record.tx, record.client);
+                    } else {
+                        info!("recording deposit tx {} for client {} amount {}", record.tx, record.client, amount);
+                    }
+
                     self.transactions.insert(
                         record.tx,
                         Transaction {
@@ -46,16 +53,20 @@ impl PaymentEngine {
             TransactionType::Withdrawal => {
                 if let Some(amount) = record.amount {
                     let account = self.get_account(record.client);
-                    account.withdraw(amount);
-
-                    self.transactions.insert(
-                        record.tx,
-                        Transaction {
-                            client: record.client,
-                            amount,
-                            disputed: false,
-                        },
-                    );
+                    // Only record the transaction if the withdrawal actually succeeded
+                    if account.withdraw(amount) {
+                        self.transactions.insert(
+                            record.tx,
+                            Transaction {
+                                client: record.client,
+                                amount,
+                                disputed: false,
+                            },
+                        );
+                    } else {
+                        // Log that a withdrawal failed and therefore was not recorded
+                        debug!("withdrawal failed or account locked for client {} tx {} amount {}", record.client, record.tx, amount);
+                    }
                 }
             }
             TransactionType::Dispute
@@ -80,12 +91,18 @@ impl PaymentEngine {
                             if tx.disputed {
                                 account.release(amount);
                                 tx.disputed = false;
+                            } else {
+                                // Resolve attempted on a transaction that isn't disputed
+                                warn!("resolve attempted for tx {} which is not under dispute", record.tx);
                             }
                         }
                         TransactionType::Chargeback => {
                             if tx.disputed {
                                 account.chargeback(amount);
                                 tx.disputed = false;
+                            } else {
+                                // Chargeback attempted on a transaction that isn't disputed
+                                warn!("chargeback attempted for tx {} which is not under dispute", record.tx);
                             }
                         }
                         _ => {}
@@ -93,6 +110,9 @@ impl PaymentEngine {
 
                     // Put the transaction back into the map
                     self.transactions.insert(record.tx, tx);
+                } else {
+                    // Transaction not found — log and ignore as per spec
+                    debug!("ignoring {:?} for tx {}: transaction not found", record.tx_type, record.tx);
                 }
             }
         }
@@ -127,6 +147,7 @@ impl PaymentEngine {
 mod tests {
     use super::*;
     use rust_decimal::Decimal;
+    use rust_decimal::prelude::FromPrimitive;
 
     fn decimal(amount: f64) -> Decimal {
         Decimal::from_f64(amount).unwrap()
@@ -250,5 +271,87 @@ mod tests {
 
         // Account should not exist yet
         assert!(engine.accounts.get(&1).is_none());
+    }
+
+    #[test]
+    fn test_dispute_on_failed_withdrawal_ignored() {
+        let mut engine = PaymentEngine::new();
+
+        // Deposit 50
+        engine.process_transaction(deposit(1, 1, 50.0));
+
+        // Withdrawal of 100 should fail and not be recorded
+        engine.process_transaction(withdrawal(1, 2, 100.0));
+        assert!(engine.transactions.get(&2).is_none());
+
+        // Disputing tx 2 should be ignored
+        engine.process_transaction(dispute(1, 2));
+
+        let acc = engine.get_account(1);
+        // balances unchanged
+        assert_eq!(acc.available, decimal(50.0));
+        assert_eq!(acc.held, decimal(0.0));
+    }
+
+    #[test]
+    fn test_duplicate_tx_id_behavior() {
+        let mut engine = PaymentEngine::new();
+
+        // First deposit 100 with tx 1
+        engine.process_transaction(deposit(1, 1, 100.0));
+        // Second deposit with same tx id (duplicate) - will apply again and overwrite recorded tx
+        engine.process_transaction(deposit(1, 1, 50.0));
+
+        let acc = engine.get_account(1);
+        // Both deposits applied
+        assert_eq!(acc.available, decimal(150.0));
+
+        // The recorded transaction should reflect the last inserted amount (50.0)
+        let tx = engine.transactions.get(&1).unwrap();
+        assert_eq!(tx.amount.round_dp(4), decimal(50.0));
+    }
+
+    #[test]
+    fn test_resolve_without_dispute_ignored_behaviour() {
+        let mut engine = PaymentEngine::new();
+
+        engine.process_transaction(deposit(1, 1, 100.0));
+        // Resolve without an active dispute should be ignored
+        engine.process_transaction(resolve(1, 1));
+
+        let acc = engine.get_account(1);
+        assert_eq!(acc.available, decimal(100.0));
+        assert_eq!(acc.held, decimal(0.0));
+    }
+
+    #[test]
+    fn test_chargeback_without_dispute_ignored_behaviour() {
+        let mut engine = PaymentEngine::new();
+
+        engine.process_transaction(deposit(1, 1, 100.0));
+        // Chargeback without dispute should be ignored
+        engine.process_transaction(chargeback(1, 1));
+
+        let acc = engine.get_account(1);
+        assert_eq!(acc.available, decimal(100.0));
+        assert_eq!(acc.held, decimal(0.0));
+        assert!(!acc.locked);
+    }
+
+    #[test]
+    fn test_dispute_referencing_withdrawal_moves_available_up_to_amount() {
+        let mut engine = PaymentEngine::new();
+
+        engine.process_transaction(deposit(1, 1, 100.0));
+        engine.process_transaction(withdrawal(1, 2, 60.0)); // available = 40
+
+        // Dispute the withdrawal tx -> hold up to tx amount (min(amount, available)) i.e., 40
+        engine.process_transaction(dispute(1, 2));
+
+        let acc = engine.get_account(1);
+        assert_eq!(acc.available, decimal(0.0));
+        assert_eq!(acc.held, decimal(40.0));
+        // total remains available + held = 40
+        assert_eq!(acc.total, decimal(40.0));
     }
 }
