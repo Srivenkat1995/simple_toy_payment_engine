@@ -1,3 +1,11 @@
+
+use::std::env;
+use::std::process;
 fn main() {
-    println!("Intialize the Payment Application");
+    // Collect command-line arguments - expecting exactly one argument for the CSV file path
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        eprintln!("Usage: {} <transactions.csv>", args[0]);
+        process::exit(1);
+    }
 }
