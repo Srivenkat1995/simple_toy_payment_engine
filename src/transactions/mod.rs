@@ -1,3 +1,2 @@
 pub mod transaction;
-pub use transaction::TransactionRecord;
-pub use transaction::TransactionType;
+pub use transaction::{TransactionType, TransactionRecord, Transaction};

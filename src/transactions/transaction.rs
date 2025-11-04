@@ -19,3 +19,10 @@ pub struct TransactionRecord {
     pub tx: u32,
     pub amount: Option<Decimal>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Transaction {
+    pub client: u16,
+    pub amount: Decimal,
+    pub disputed: bool,
+}
