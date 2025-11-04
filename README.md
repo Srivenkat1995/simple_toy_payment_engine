@@ -267,6 +267,7 @@ In the development of this project, I have utilized the following AI tools:
    - Used for adding code references to README.md
    - Helped with formatting and structuring the documentation
    - Assisted in extracting relevant code snippets from implementation files
+   - Creating Class Diagram
 
 2. **Code Navigation**
    - Used to locate relevant code sections across multiple files
