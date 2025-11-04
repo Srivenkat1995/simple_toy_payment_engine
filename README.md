@@ -258,6 +258,37 @@ fn test_chargeback_locks_account() {
 
 All tests pass in current state. Let me know if you need any behavior changes for grading compatibility.
 
+## AI Tool Usage Declaration
+
+In the development of this project, I have utilized the following AI tools:
+
+### GitHub Copilot
+1. **Documentation Enhancement**
+   - Used for adding code references to README.md
+   - Helped with formatting and structuring the documentation
+   - Assisted in extracting relevant code snippets from implementation files
+
+2. **Code Navigation**
+   - Used to locate relevant code sections across multiple files
+   - Helped identify key implementation details for documentation
+
+The core implementation including:
+- Payment engine logic
+- Transaction processing
+- Account management
+- Test cases
+- Error handling
+
+Were all written manually without AI assistance to ensure a deep understanding of the problem and solution.
+
+### Rationale for AI Usage
+I chose to use AI tools specifically for documentation tasks to:
+1. Improve readability and maintainability of the codebase
+2. Ensure comprehensive coverage of implementation details
+3. Maintain consistent documentation style
+4. Save time on repetitive documentation tasks while focusing on core implementation quality
+
+All AI-generated content was carefully reviewed and edited to ensure accuracy and alignment with the actual implementation.
 
 ## References
 
