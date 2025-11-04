@@ -1,0 +1,12 @@
+[package]
+name = "simple_toy_payments_engine"
+version = "0.1.0"
+edition = "2024"
+authors = ["Srivenkata Krishnan Sesharamanujam <svkprasanna1995@gmail.com>"]
+description = "A simple Rust-based payments engine that processes transactions and outputs account balances."
+
+
+[dependencies]
+serde = {version = "*", features = ["derive"]}
+csv = "*"
+rust_decimal = { version = "1.30", features = ["serde"] }
